@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteka Lab01</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 20px; background-color: #f4f4f4; }
+        h1, h2 { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+        .container { display: flex; gap: 30px; }
+        .column { flex: 1; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        form { display: grid; grid-template-columns: 100px 1fr; gap: 10px; margin-bottom: 20px; }
+        form label { font-weight: bold; text-align: right; }
+        input, select, button { padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+        button { background-color: #007bff; color: white; cursor: pointer; grid-column: 2; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>System Biblioteczny</h1>
+    <p id="status" class=""></p>
+
+    <div class="container">
+        <div class="column">
+            <h2>Dodaj Czytelnika</h2>
+            <form id="formAddMember">
+                <label for="memberName">Nazwa:</label>
+                <input type="text" id="memberName" required>
+                <label for="memberEmail">Email:</label>
+                <input type="email" id="memberEmail" required>
+                <button type="submit">Dodaj Czytelnika</button>
+            </form>
+
+            <h2>Dodaj Książkę</h2>
+            <form id="formAddBook">
+                <label for="bookTitle">Tytuł:</label>
+                <input type="text" id="bookTitle" required>
+                <label for="bookAuthor">Autor:</label>
+                <input type="text" id="bookAuthor" required>
+                <label for="bookCopies">Egz.:</label>
+                <input type="number" id="bookCopies" value="1" min="1" required>
+                <button type="submit">Dodaj Książkę</button>
+            </form>
+        </div>
+
+        <div class="column">
+            <h2>Wypożycz Książkę</h2>
+            <form id="formBorrow">
+                <label for="borrowMember">Czytelnik:</label>
+                <select id="borrowMember" required></select>
+                <label for="borrowBook">Książka:</label>
+                <select id="borrowBook" required></select>
+                <button type="submit">Wypożycz</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="container" style="margin-top: 20px;">
+        <div class="column">
+            <h2>Dostępne Książki</h2>
+            <table id="booksTable">
+                <thead><tr><th>ID</th><th>Tytuł</th><th>Autor</th><th>Dostępne</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="column">
+            <h2>Aktywne Wypożyczenia</h2>
+            <table id="loansTable">
+                <thead><tr><th>ID</th><th>Książka</th><th>Czytelnik</th><th>Termin</th><th>Akcja</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Adres URL naszego API
+        const API_URL = 'http://127.0.0.1:5000/api';
+
+        // --- Elementy DOM ---
+        const statusEl = document.getElementById('status');
+        const formAddMember = document.getElementById('formAddMember');
+        const formAddBook = document.getElementById('formAddBook');
+        const formBorrow = document.getElementById('formBorrow');
+        const booksTableBody = document.querySelector('#booksTable tbody');
+        const loansTableBody = document.querySelector('#loansTable tbody');
+        const borrowMemberSelect = document.getElementById('borrowMember');
+        const borrowBookSelect = document.getElementById('borrowBook');
+
+        // --- Funkcje pomocnicze ---
+        function showStatus(message, isError = false) {
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'error' : 'success';
+            setTimeout(() => { statusEl.textContent = ''; statusEl.className = ''; }, 3000);
+        }
+
+        // --- Funkcje wczytujące dane ---
+
+        // Wczytuje książki i wypełnia tabelę oraz listę do wypożyczeń
+        async function loadBooks() {
+            try {
+                const response = await fetch(`${API_URL}/books`);
+                const books = await response.json();
+                
+                booksTableBody.innerHTML = '';
+                borrowBookSelect.innerHTML = '';
+
+                books.forEach(book => {
+                    // Wypełnij tabelę
+                    const row = `<tr>
+                        <td>${book.id}</td>
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td><b>${book.available} / ${book.copies}</b></td>
+                    </tr>`;
+                    booksTableBody.innerHTML += row;
+
+                    // Wypełnij listę select (tylko jeśli są dostępne)
+                    if (book.available > 0) {
+                        const option = `<option value="${book.id}">${book.title} (${book.author})</option>`;
+                        borrowBookSelect.innerHTML += option;
+                    }
+                });
+            } catch (err) {
+                showStatus('Błąd wczytywania książek.', true);
+            }
+        }
+
+        // Wczytuje czytelników i wypełnia listę do wypożyczeń
+        async function loadMembers() {
+            try {
+                const response = await fetch(`${API_URL}/members`);
+                const members = await response.json();
+                
+                borrowMemberSelect.innerHTML = '';
+                members.forEach(member => {
+                    const option = `<option value="${member.id}">${member.name} (${member.email})</option>`;
+                    borrowMemberSelect.innerHTML += option;
+                });
+            } catch (err) {
+                showStatus('Błąd wczytywania czytelników.', true);
+            }
+        }
+
+        // Wczytuje aktywne wypożyczenia
+        async function loadLoans() {
+            try {
+                const response = await fetch(`${API_URL}/loans`);
+                const loans = await response.json();
+                
+                loansTableBody.innerHTML = '';
+                loans.forEach(loan => {
+                    const row = `<tr>
+                        <td>${loan.id}</td>
+                        <td>${loan.book_title}</td>
+                        <td>${loan.member_name}</td>
+                        <td>${loan.due_date}</td>
+                        <td>
+                            <button onclick="returnBook(${loan.id})">Zwróć</button>
+                        </td>
+                    </tr>`;
+                    loansTableBody.innerHTML += row;
+                });
+            } catch (err) {
+                showStatus('Błąd wczytywania wypożyczeń.', true);
+            }
+        }
+
+        // --- Funkcje wykonujące akcje (POST) ---
+
+        // Dodawanie czytelnika
+        formAddMember.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('memberName').value;
+            const email = document.getElementById('memberEmail').value;
+
+            try {
+                const response = await fetch(`${API_URL}/members`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Kryterium akceptacji: Błąd unikalnego emaila
+                    throw new Error(data.error || 'Błąd serwera');
+                }
+                
+                showStatus(`Dodano czytelnika: ${data.name}`);
+                formAddMember.reset();
+                loadMembers(); // Odśwież listę
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        });
+
+        // Dodawanie książki
+        formAddBook.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+            const copies = document.getElementById('bookCopies').value;
+
+            try {
+                const response = await fetch(`${API_URL}/books`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, author, copies: parseInt(copies) })
+                });
+
+                if (!response.ok) throw new Error('Błąd serwera');
+                
+                const data = await response.json();
+                showStatus(`Dodano książkę: ${data.title}`);
+                formAddBook.reset();
+                loadBooks(); // Odśwież listę
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        });
+
+        // Wypożyczanie książki
+        formBorrow.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const member_id = borrowMemberSelect.value;
+            const book_id = borrowBookSelect.value;
+
+            if (!member_id || !book_id) {
+                showStatus('Wybierz czytelnika i książkę!', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/loans/borrow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ member_id: parseInt(member_id), book_id: parseInt(book_id) })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Kryterium akceptacji: Brak kopii (409)
+                    throw new Error(data.error || 'Błąd serwera');
+                }
+
+                showStatus(`Wypożyczono książkę (ID wypożyczenia: ${data.id})`);
+                // Kryterium akceptacji: Dodanie/zwrot aktualizuje liczby
+                loadAllData(); // Odśwież wszystko
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        });
+
+        // Zwracanie książki (wywoływane z przycisku w tabeli)
+        async function returnBook(loan_id) {
+            try {
+                const response = await fetch(`${API_URL}/loans/return`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ loan_id })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Kryterium akceptacji: Już zwrócono (409)
+                    throw new Error(data.error || 'Błąd serwera');
+                }
+
+                showStatus(`Zwrócono książkę (ID wypożyczenia: ${data.id})`);
+                // Kryterium akceptacji: Aktualizacja liczb
+                loadAllData(); // Odśwież wszystko
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        }
+
+
+        // --- Funkcja startowa ---
+        function loadAllData() {
+            loadBooks();
+            loadMembers();
+            loadLoans();
+        }
+
+        // Wczytaj wszystkie dane przy starcie strony
+        document.addEventListener('DOMContentLoaded', loadAllData);
+
+    </script>
+</body>
+</html>

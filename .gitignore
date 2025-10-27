@@ -1,0 +1,14 @@
+# Środowisko wirtualne
+venv/
+
+# Pliki cache Pythona
+__pycache__/
+
+# Pliki bazy danych SQLite
+*.db
+
+# Pliki systemowe
+.DS_Store
+
+# Foldery VS Code
+.vscode/

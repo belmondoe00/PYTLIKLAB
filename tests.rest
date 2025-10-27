@@ -1,0 +1,67 @@
+# Ustawienie zmiennej hosta
+@host = http://127.0.0.1:5000
+
+### Pobierz wszystkie książki
+GET {{host}}/api/books
+
+### Pobierz wszystkich czytelników
+GET {{host}}/api/members
+
+### Pobierz aktywne wypożyczenia
+GET {{host}}/api/loans
+
+### 1. Dodaj nowego czytelnika
+POST {{host}}/api/members
+Content-Type: application/json
+
+{
+    "name": "Jan Kowalski (z REST)",
+    "email": "jan.kowalski@rest.com"
+}
+
+### 2. Dodaj czytelnika z tym samym e-mailem (Oczekiwany błąd 409)
+POST {{host}}/api/members
+Content-Type: application/json
+
+{
+    "name": "Inny Jan",
+    "email": "jan.kowalski@rest.com"
+}
+
+### 3. Dodaj nową książkę
+POST {{host}}/api/books
+Content-Type: application/json
+
+{
+    "title": "REST API dla Opornych",
+    "author": "Tester",
+    "copies": 2
+}
+
+### 4. Wypożycz książkę (zmień ID na prawdziwe)
+# Zastąp member_id i book_id wartościami ID, które dostałeś wyżej
+POST {{host}}/api/loans/borrow
+Content-Type: application/json
+
+{
+    "member_id": 1, 
+    "book_id": 1
+}
+
+### 5. Zwróć książkę (zmień ID na prawdziwe)
+# Zastąp loan_id wartością ID, którą dostałeś wyżej
+POST {{host}}/api/loans/return
+Content-Type: application/json
+
+{
+    "loan_id": 1
+}
+
+### 6. Wypożycz nieistniejącą książkę (Oczekiwany błąd 404)
+POST {{host}}/api/loans/borrow
+Content-Type: application/json
+
+{
+    "member_id": 1,
+    "book_id": 999
+}
